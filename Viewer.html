@@ -68,14 +68,31 @@
     /* ピン操作のヒントバー（地図の下に常時表示） */
     .map-hint {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 6px;
+      gap: 6px 14px;
       font-size: 12px;
+      line-height: 1.5;
       color: #9ca3af;
       background: #1e1e1e;
       border-radius: 8px;
       padding: 8px 12px;
       margin: -10px 0 20px 0;
+    }
+    .map-hint .hint-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+    .map-hint .hint-item svg {
+      flex-shrink: 0;
+    }
+    .map-hint .hint-note {
+      flex: 1 1 100%;
+      white-space: normal;
+      text-align: left;
+      padding-top: 2px;
     }
 
     /* 地図 */
@@ -212,13 +229,15 @@
       border-bottom: none;
     }
     .icon-box {
-      width: 40px;
-      height: 40px;
+      width: 52px;
+      height: 44px;
       background-color: #2a2a2a;
-      border-radius: 8px;
+      border-radius: 10px;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 3px;
       margin-right: 12px;
       color: #888;
       font-size: 18px;
@@ -228,25 +247,24 @@
     .icon-box:hover {
       background-color: #3a3a3a;
     }
-    /* クリック可能なピン（座標あり）は赤枠＋強調で「押せる」ことを示す */
+    /* クリック可能なピン（座標あり）は青枠＋強調で「押せる」ことを示す（ドットは赤=休憩所/青=トイレ） */
     .icon-box.clickable {
-      background-color: #37474f;
-      border: 2px solid #f44336;
+      background-color: #263238;
+      border: 2px solid #2196F3;
       color: #fff;
-      box-shadow: 0 2px 6px rgba(244,67,54,0.4);
+      box-shadow: 0 2px 6px rgba(33,150,243,0.4);
     }
     .icon-box.clickable:hover {
-      background-color: #455a64;
-      transform: scale(1.1);
-      box-shadow: 0 4px 10px rgba(244,67,54,0.6);
+      background-color: #37474f;
+      transform: scale(1.05);
+      box-shadow: 0 4px 10px rgba(33,150,243,0.6);
     }
     .icon-box.clickable::after {
       content: "位置表示";
-      display: block;
-      font-size: 8px;
-      color: #ffcdd2;
+      font-size: 9px;
+      color: #b0bec5;
       line-height: 1;
-      margin-top: 2px;
+      margin-top: 0;
     }
     .icon-box.no-coords {
       cursor: default;
@@ -416,8 +434,22 @@
 
   <!-- 地図 -->
   <div id="map"></div>
-  <!-- ピン操作のヒント -->
-  <div class="map-hint">📍 ピンをタップすると地図アプリで場所を確認できます</div>
+  <!-- ピン操作のヒント（地図の下に常時表示） -->
+  <div class="map-hint">
+    <span class="hint-item">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="7" fill="#F44336" fill-opacity="0.9" stroke="#FFFFFF" stroke-width="2"/>
+      </svg>
+      <span>休憩所</span>
+    </span>
+    <span class="hint-item">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="7" fill="#2196F3" fill-opacity="0.9" stroke="#FFFFFF" stroke-width="2"/>
+      </svg>
+      <span>トイレ</span>
+    </span>
+    <span class="hint-note">ピンをタップすると地図アプリで場所を確認できます</span>
+  </div>
 
   <!-- 上段：ステータスカード -->
   <div class="status-card" id="statusCard">
@@ -453,7 +485,7 @@
   </div>
 
   <script>
-    let map, marker, spotMarker;
+    let map, marker;
     let manualView = false; // アイコンで手動移動中はGPS自動追従を一時停止
     let stationData = [];   // 休憩所ピンの常時表示用データ
     let toiletData = [];    // トイレピンの常時表示用データ
@@ -699,7 +731,11 @@
         const badgeIcon = "";
 
         div.innerHTML = `
-          <div class="icon-box">📍</div>
+          <div class="icon-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style="display:block;">
+              <circle cx="9" cy="9" r="6" fill="#F44336" fill-opacity="0.9" stroke="#FFFFFF" stroke-width="2"/>
+            </svg>
+          </div>
           <div class="info-box">
             <div class="spot-name">${esc(item.name)}</div>
             ${infoHtml}
@@ -934,7 +970,11 @@
         const div = document.createElement("div");
         div.className = "timeline-item";
         div.innerHTML = `
-          <div class="icon-box">🚻</div>
+          <div class="icon-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style="display:block;">
+              <circle cx="9" cy="9" r="6" fill="#2196F3" fill-opacity="0.9" stroke="#FFFFFF" stroke-width="2"/>
+            </svg>
+          </div>
           <div class="info-box">
             <div class="spot-name">${esc(item.name)}</div>
           </div>
@@ -973,6 +1013,8 @@
       }
     }
     // タイムラインのアイコン用：地図を指定位置へスクロールするだけ（メニューは出さない）
+    // 注意: ここで追加の赤ピンを立てると、既存のピン（トイレの青ピン等）と重なって
+    // 色が変わったように見えるため、地図の移動のみ行う
     function flyToSpot(lat, lng) {
       manualView = true;
       const followBtn = document.getElementById("followBtn");
@@ -983,22 +1025,6 @@
       // 地図をその位置へ移動
       map.setCenter(pos);
       map.setZoom(16);
-
-      // 位置を示す赤ピンを立てる（まだ無ければ作る）
-      if (!spotMarker) {
-        spotMarker = new google.maps.Marker({
-          map: map,
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 9,
-            fillColor: "#F44336",
-            fillOpacity: 1,
-            strokeColor: "#FFFFFF",
-            strokeWeight: 2
-          }
-        });
-      }
-      spotMarker.setPosition(pos);
 
       // ページ（地図）までスクロール
       const mapEl = document.getElementById("map");
