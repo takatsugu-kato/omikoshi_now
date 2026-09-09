@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background-color: #121212;
+      color: #ffffff;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: bold;
+    }
+    .refresh-btn {
+      color: #ccc;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+    .refresh-btn svg {
+      display: block;
+    }
+    .refresh-btn:active {
+      opacity: 0.6;
+    }
+    /* 再読み込み中のアイコン回転 */
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .spinning {
+      animation: spin 0.7s linear infinite;
+    }
+    /* 地図下の最終位置情報バー（ヘッダー右側・再読み込みの左に表示） */
+    .gps-info {
+      font-size: 12px;
+      color: #9ca3af;
+      background: #1e1e1e;
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .gps-info b {
+      color: #e5e7eb;
+    }
+
+    /* ピン操作のヒントバー（地図の下に常時表示） */
+    .map-hint {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #9ca3af;
+      background: #1e1e1e;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin: -10px 0 20px 0;
+    }
+
+    /* 地図 */
+    #map {
+      width: 100%;
+      height: 250px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      background-color: #222;
+    }
+
+    /* 上段：運行状況カード */
+    .status-card {
+      background-color: #1d7a99;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: background-color 0.3s;
+    }
+    /* 状態別の背景色 */
+    .status-card.rest {
+      background-color: #78350f; /* 休憩中：ダークブラウン（赤系文字が読みやすい） */
+    }
+    .status-card.done {
+      background-color: #374151; /* 渡御終了：グレー */
+    }
+    .status-title {
+      font-size: 16px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    /* 進捗ラベルのドット（パルス点滅） */
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 2px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .status-dot.moving { background-color: #4fc3f7; } /* 移動中：シアン */
+    .status-dot.rest   { background-color: #ffd54f; } /* 休憩中：イエロー */
+    .status-dot.done   { background-color: #9e9e9e; } /* 終了：グレー */
+    @keyframes pulse {
+      0%   { opacity: 1; transform: scale(1); }
+      50%  { opacity: 0.4; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .status-sub {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 8px;
+    }
+    .status-main {
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+    .status-footer {
+      font-size: 15px;
+      display: flex;
+      gap: 12px;
+      opacity: 0.95;
+    }
+    /* 滞在中カードの到着予定・実際到着の行 */
+    .status-arrival {
+      font-size: 15px;
+      opacity: 0.95;
+      margin-bottom: 6px;
+    }
+    .status-arrival .line {
+      display: block;
+      margin-bottom: 3px;
+    }
+    .status-arrival .time-label {
+      display: inline-block;
+      min-width: 28px;
+      color: #ffe0b2;
+    }
+    .status-arrival .actual .time-label {
+      color: #ff8a80;
+    }
+
+    /* 下段：タイムライン */
+    .section-title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+    /* タブ切り替え */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 10px 0;
+      font-size: 15px;
+      font-weight: bold;
+      border-radius: 10px;
+      background: #1e1e1e;
+      color: #9ca3af;
+      cursor: pointer;
+      user-select: none;
+      border: 1px solid #2c2c2c;
+      transition: background-color 0.2s, color 0.2s;
+    }
+    .tab.active {
+      background: #1d7a99;
+      color: #fff;
+      border-color: #1d7a99;
+    }
+    .tab:active {
+      opacity: 0.8;
+    }
+    .timeline-container {
+      background-color: #1e1e1e;
+      border-radius: 12px;
+      padding: 8px 16px;
+    }
+    .timeline-item {
+      display: flex;
+      align-items: center;
+      padding: 14px 0;
+      border-bottom: 1px solid #2c2c2c;
+    }
+    .timeline-item:last-child {
+      border-bottom: none;
+    }
+    .icon-box {
+      width: 40px;
+      height: 40px;
+      background-color: #2a2a2a;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 12px;
+      color: #888;
+      font-size: 18px;
+      cursor: pointer; /* アイコンクリックで地図移動 */
+      transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    }
+    .icon-box:hover {
+      background-color: #3a3a3a;
+    }
+    /* クリック可能なピン（座標あり）は赤枠＋強調で「押せる」ことを示す */
+    .icon-box.clickable {
+      background-color: #37474f;
+      border: 2px solid #f44336;
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(244,67,54,0.4);
+    }
+    .icon-box.clickable:hover {
+      background-color: #455a64;
+      transform: scale(1.1);
+      box-shadow: 0 4px 10px rgba(244,67,54,0.6);
+    }
+    .icon-box.clickable::after {
+      content: "位置表示";
+      display: block;
+      font-size: 8px;
+      color: #ffcdd2;
+      line-height: 1;
+      margin-top: 2px;
+    }
+    .icon-box.no-coords {
+      cursor: default;
+    }
+    .icon-box.no-coords::after {
+      content: "";
+    }
+    .info-box {
+      flex: 1;
+    }
+    .spot-name {
+      font-size: 17px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .spot-time {
+      font-size: 13px;
+      color: #aaa;
+      margin-top: 2px;
+    }
+    /* 実際の時刻はオレンジで強調 */
+    .spot-time.actual {
+      color: #ff9800;
+      font-weight: bold;
+    }
+    .time-label {
+      display: inline-block;
+      min-width: 24px;
+      margin-right: 4px;
+      color: #888;
+    }
+    .spot-time.actual .time-label {
+      color: #ff9800;
+    }
+    /* コメント表示 */
+    .spot-comment {
+      font-size: 12px;
+      color: #9ae6b4;
+      margin-top: 4px;
+      line-height: 1.7;
+    }
+    .comment-tag {
+      display: inline-block;
+      font-size: 11px;
+      color: #eee;
+      background: #333;
+      border-radius: 4px;
+      padding: 1px 8px;
+      margin-right: 6px;
+      font-weight: bold;
+    }
+    
+    /* バッジスタイル */
+    .badge {
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: bold;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .badge-stay {
+      background-color: #1c3d5a;
+      color: #4299e1;
+    }
+    .badge-next {
+      background-color: #4a3000;
+      color: #ecc94b;
+    }
+    .badge-future {
+      background-color: #2d3748;
+      color: #a0aec0;
+    }
+    .badge-passed {
+      background-color: #1c4532;
+      color: #48bb78;
+    }
+
+    /* 確認モーダル */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-box {
+      background: #232323;
+      border-radius: 14px;
+      padding: 24px 20px;
+      width: min(320px, 86vw);
+      text-align: center;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    }
+    .modal-icon {
+      font-size: 34px;
+      margin-bottom: 8px;
+    }
+    .modal-title {
+      font-size: 17px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .modal-sub {
+      font-size: 13px;
+      color: #aaa;
+      margin-bottom: 18px;
+      line-height: 1.6;
+      word-break: break-all;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .modal-actions .btn {
+      flex: 1;
+      padding: 12px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-cancel {
+      background: #3a3a3a;
+      color: #ccc;
+    }
+    .btn-open {
+      background: #2196F3;
+      color: #fff;
+    }
+    .btn-cancel:active, .btn-open:active {
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h2>
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="26" viewBox="0 0 44 52" style="vertical-align:-6px;">
+        <rect x="7" y="16" width="30" height="28" rx="2" fill="#C62828" stroke="#F9A825" stroke-width="2"/>
+        <path d="M4 16 L22 5 L40 16 Z" fill="#F9A825" stroke="#B8860B" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="5" cy="15" r="2.5" fill="#F9A825"/>
+        <circle cx="39" cy="15" r="2.5" fill="#F9A825"/>
+        <circle cx="22" cy="5" r="3.5" fill="#FFD54F" stroke="#B8860B" stroke-width="1"/>
+        <circle cx="22" cy="30" r="6.5" fill="#F9A825"/>
+        <circle cx="22" cy="30" r="4" fill="#C62828"/>
+        <path d="M9 44 L35 44" stroke="#F9A825" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      神輿なう
+    </h2>
+    <div class="header-right">
+      <div class="gps-info" id="gpsInfo">🛰 位置情報: 取得中...</div>
+      <div class="refresh-btn" onclick="manualRefresh()">
+        <svg id="refreshIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+        </svg>
+        <span>再読み込み</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 地図 -->
+  <div id="map"></div>
+  <!-- ピン操作のヒント -->
+  <div class="map-hint">📍 ピンをタップすると地図アプリで場所を確認できます</div>
+
+  <!-- 上段：ステータスカード -->
+  <div class="status-card" id="statusCard">
+    <div class="status-title">● 読み込み中</div>
+    <div class="status-main">データを取得しています...</div>
+  </div>
+
+  <!-- 下段：タブ切り替え（休憩所 / トイレ） -->
+  <div class="tabs">
+    <div class="tab active" id="tabStations" onclick="switchTab('stations')">🥤 休憩所</div>
+    <div class="tab" id="tabToilets" onclick="switchTab('toilets')">🚻 トイレ</div>
+  </div>
+  <div class="timeline-container" id="timelineBody">
+    <div style="text-align:center; padding:20px; color:#888;">読み込み中...</div>
+  </div>
+  <div class="timeline-container" id="toiletBody" style="display:none;">
+    <div style="text-align:center; padding:20px; color:#888;">読み込み中...</div>
+  </div>
+
+  <!-- Google Maps API はAPIキー取得後に動的ロード（キーはスクリプトプロパティから取得） -->
+
+  <!-- 地図アプリを開く前の確認モーダル -->
+  <div class="modal-overlay" id="confirmModal" style="display:none;" onclick="hideConfirmModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-icon">🗺️</div>
+      <div class="modal-title" id="confirmTitle">地図アプリで開きますか？</div>
+      <div class="modal-sub" id="confirmText"></div>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" onclick="hideConfirmModal()">キャンセル</button>
+        <button class="btn btn-open" id="confirmOpenBtn" onclick="openPendingMap()">マップで開く</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let map, marker, spotMarker;
+    let manualView = false; // アイコンで手動移動中はGPS自動追従を一時停止
+    let stationData = [];   // 休憩所ピンの常時表示用データ
+    let toiletData = [];    // トイレピンの常時表示用データ
+
+    // HTMLエスケープ（コメント等のユーザー入力対策）
+    function esc(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    // ---- ピンの「押せる」演出：パルスリング（波紋アニメーション） ----
+    let pulseCircles = [];   // 全ピンのパルスリング（休憩所＋トイレ）
+    let pulseFrame = 0;
+    let pulseTimer = null;
+    let markerPulse = null;  // お神輿ピンのパルスリング
+
+    // すべてのパルスリングを1つのタイマーでまとめて動かす（負荷軽減）
+    function startPulseLoop() {
+      if (pulseTimer) return;
+      pulseTimer = setInterval(function() {
+        pulseFrame++;
+        const totalFrames = 28; // 約1.7秒で1往復
+        const t = (pulseFrame % totalFrames) / totalFrames;
+        pulseCircles.forEach(function(p) {
+          p.circle.setOptions({
+            radius: p.baseRadius + t * 16,
+            strokeOpacity: 0.65 * (1 - t),
+            fillOpacity: 0.12 * (1 - t)
+          });
+        });
+        if (markerPulse) {
+          markerPulse.setOptions({
+            radius: 30 + t * 20,
+            strokeOpacity: 0.7 * (1 - t),
+            fillOpacity: 0.15 * (1 - t)
+          });
+        }
+      }, 60);
+    }
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 15,
+        center: { lat: 35.38858, lng: 139.403229 },
+        zoomControl: false,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false
+      });
+
+      marker = new google.maps.Marker({
+        map: map,
+        icon: getMikoshiIcon()
+      });
+      marker.setTitle("お神輿の現在位置（タップで地図アプリで開く）");
+
+      // ピンが「押せる」ことを示すパルスリング（波紋アニメーション）
+      markerPulse = new google.maps.Circle({
+        map: map,
+        center: marker.getPosition(),
+        radius: 30,
+        strokeColor: "#4FC3F7",
+        strokeWeight: 2,
+        strokeOpacity: 0.7,
+        fillColor: "#4FC3F7",
+        fillOpacity: 0.15,
+        zIndex: 1
+      });
+      startPulseLoop();
+
+      // お神輿ピンをクリックしたら、OSネイティブの地図アプリで開く
+      marker.addListener("click", function() {
+        const pos = marker.getPosition();
+        if (pos) {
+          openNativeMap(pos.lat(), pos.lng(), "お神輿");
+        }
+      });
+
+      // GPS自動追従へ戻すボタン（アイコンで手動移動したときだけ表示）
+      const followBtn = document.createElement("div");
+      followBtn.id = "followBtn";
+      followBtn.style.cssText = "display:none; margin-top:24px; background:#2196F3; color:#fff; border:none; border-radius:20px; padding:8px 16px; font-size:13px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.4);";
+      followBtn.textContent = "神輿の現在位置に戻る";
+      followBtn.onclick = () => {
+        manualView = false;
+        followBtn.style.display = "none";
+        if (marker.getPosition()) map.setCenter(marker.getPosition());
+      };
+      map.controls[google.maps.ControlPosition.TOP_CENTER].push(followBtn);
+
+      fetchData();
+      setInterval(fetchData, 30000); // 30秒自動更新
+    }
+
+    // スクリプトプロパティからAPIキーを取得してから Google Maps API を読み込む
+    function loadGoogleMaps() {
+      google.script.run
+        .withSuccessHandler(function(key) {
+          if (!key) {
+            document.getElementById("statusCard").innerHTML =
+              '<div class="status-title">⚠️ 設定エラー</div><div class="status-main">Google Maps APIキーが未設定です<br>(スクリプトプロパティ GMAP_API_KEY を設定してください)</div>';
+            return;
+          }
+          var script = document.createElement("script");
+          script.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key);
+          script.async = true;
+          script.defer = true;
+          // API読み込み完了後に直接 initMap を呼ぶ（window.onload は既に発火済みなので使わない）
+          script.onload = initMap;
+          document.head.appendChild(script);
+        })
+        .withFailureHandler(function(err) {
+          document.getElementById("statusCard").innerHTML =
+            '<div class="status-title">⚠️ 設定エラー</div><div class="status-main">APIキーの取得に失敗しました</div>';
+        })
+        .getGmapApiKey();
+    }
+
+    // ページ読み込み時にAPIキーを取得して地図を初期化
+    window.onload = loadGoogleMaps;
+
+    // データ取得（成功/失敗をハンドリング）
+    function fetchData() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          stopSpin();
+          renderData(data);
+        })
+        .withFailureHandler(function(err) {
+          stopSpin();
+          const card = document.getElementById("statusCard");
+          if (card) {
+            card.innerHTML = '<div class="status-title">⚠️ 取得エラー</div><div class="status-main">データを取得できませんでした</div>';
+          }
+        })
+        .getViewerData();
+    }
+
+    // 手動再読み込み（アイコンを回転）
+    function manualRefresh() {
+      const icon = document.getElementById("refreshIcon");
+      if (icon) icon.classList.add("spinning");
+      fetchData();
+    }
+
+    function stopSpin() {
+      const icon = document.getElementById("refreshIcon");
+      if (icon) icon.classList.remove("spinning");
+    }
+
+    function renderData(data) {
+      // 0. 位置情報の最終更新時刻を表示
+      const gpsInfo = document.getElementById("gpsInfo");
+      if (data.gps) {
+        gpsInfo.innerHTML = `🛰 位置情報 最終更新 <b>${esc(data.gps.timestamp)}</b>`;
+      } else {
+        gpsInfo.textContent = "🛰 位置情報: まだ記録がありません";
+      }
+
+      // 1. 地図更新（アイコンで手動移動中は自動追従しない）
+      if (data.gps) {
+        const pos = { lat: data.gps.lat, lng: data.gps.lng };
+        marker.setPosition(pos);
+        if (markerPulse) markerPulse.setCenter(pos); // パルスリングも追従
+        if (!manualView) {
+          map.setCenter(pos);
+        }
+      }
+
+      // 2. 運行状況カード更新
+      const card = document.getElementById("statusCard");
+      const c = data.statusCard;
+      
+      let delayText = c.delayMinutes > 0 ? `${c.delayMinutes}分遅れ` : (c.delayMinutes < 0 ? `${Math.abs(c.delayMinutes)}分巻き` : '定刻');
+      // 遅延の色分け（遅れ:赤 / 巻き:灰 / 定刻:緑）
+      let delayClass = c.delayMinutes > 0 ? 'color:#ff8a80;' : (c.delayMinutes < 0 ? 'color:#cfd8dc;' : 'color:#a5d6a7;');
+      
+      if (c.isStag) {
+        card.className = "status-card rest";
+        card.innerHTML = `
+          <div class="status-title"><span class="status-dot rest"></span>休憩中</div>
+          <div class="status-sub">${c.currentIndex}番目の休憩所</div>
+          <div class="status-main">「${esc(c.currentName)}」で休憩しています</div>
+          <div class="status-arrival">
+            <div class="line"><span class="time-label">予定</span>${esc(c.currentArrival)}〜${esc(c.currentDeparture)}</div>
+            <div class="line actual"><span class="time-label">実際</span>${esc(c.actualArrival)}${c.actualDeparture ? "〜" + esc(c.actualDeparture) : "〜"}</div>
+          </div>
+          <div class="status-footer">
+            <span>出発予定 ${esc(c.nextTime)}</span>
+            <span style="${delayClass}">${delayText}</span>
+          </div>
+        `;
+      } else if (c.nextName) {
+        card.className = "status-card";
+        card.innerHTML = `
+          <div class="status-title"><span class="status-dot moving"></span>移動中</div>
+          <div class="status-sub">次は ${c.currentIndex + 1}番目の休憩所</div>
+          <div class="status-main">「${esc(c.nextName)}」へ向かっています</div>
+          <div class="status-footer">
+            <span>到着予定 ${esc(c.nextTime)}</span>
+            <span style="${delayClass}">${delayText}</span>
+          </div>
+        `;
+      } else {
+        card.className = "status-card done";
+        card.innerHTML = `
+          <div class="status-title"><span class="status-dot done"></span>渡御終了</div>
+          <div class="status-main">すべての工程が完了しました</div>
+        `;
+      }
+
+      // 3. タイムライン更新
+      const timelineBody = document.getElementById("timelineBody");
+      timelineBody.innerHTML = "";
+
+      // 休憩所ピン用データを保持（常時表示のピン更新にも使用）
+      stationData = data.timeline;
+      renderStationPins(stationData);
+
+      // トイレデータの保持（常時表示の黄色ピン＋リスト）
+      toiletData = data.toilets || [];
+      renderToiletPins(toiletData);
+      renderToiletList(toiletData);
+
+
+      data.timeline.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "timeline-item";
+
+        // 予定の行
+        let infoHtml = `<div class="spot-time"><span class="time-label">予定</span>${esc(item.arrival)}〜${esc(item.departure)}</div>`;
+        // 実際の行（記録があれば）
+        if (item.actual_arrival) {
+          infoHtml += `<div class="spot-time actual"><span class="time-label">実際</span>${esc(item.actual_arrival)}${item.actual_departure ? "〜" + esc(item.actual_departure) : ""}</div>`;
+        }
+        // コメントの行（あれば）
+        if (item.arrival_comment) {
+          infoHtml += `<div class="spot-comment"><span class="comment-tag">到着</span>${esc(item.arrival_comment)}</div>`;
+        }
+        if (item.departure_comment) {
+          infoHtml += `<div class="spot-comment"><span class="comment-tag">出発</span>${esc(item.departure_comment)}</div>`;
+        }
+
+        const badgeIcon = "";
+
+        div.innerHTML = `
+          <div class="icon-box">📍</div>
+          <div class="info-box">
+            <div class="spot-name">${esc(item.name)}</div>
+            ${infoHtml}
+          </div>
+          <div>
+            <span class="badge ${item.badgeClass}">${esc(item.statusText)}</span>
+          </div>
+        `;
+        // 左のアイコンクリックで地図へスクロール（メニューは出さない）
+        const iconBox = div.querySelector(".icon-box");
+        if (item.lat && item.lng) {
+          iconBox.classList.add("clickable");
+          iconBox.title = "「" + item.name + "」を地図上に表示";
+          iconBox.onclick = () => flyToSpot(item.lat, item.lng);
+        } else {
+          iconBox.classList.add("no-coords");
+          iconBox.title = "位置情報なし";
+        }
+        timelineBody.appendChild(div);
+      });
+    }
+
+    // お神輿アイコンのSVG（金と紅のデザイン）
+    function getMikoshiIcon() {
+      var svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 44 52">' +
+        // 垂れ幕（胴）
+        '<rect x="7" y="16" width="30" height="28" rx="2" fill="#C62828" stroke="#F9A825" stroke-width="2"/>' +
+        // 屋根
+        '<path d="M4 16 L22 5 L40 16 Z" fill="#F9A825" stroke="#B8860B" stroke-width="2" stroke-linejoin="round"/>' +
+        // 屋根の両端飾り
+        '<circle cx="5" cy="15" r="2.5" fill="#F9A825"/>' +
+        '<circle cx="39" cy="15" r="2.5" fill="#F9A825"/>' +
+        // 頂上の宝珠
+        '<circle cx="22" cy="5" r="3.5" fill="#FFD54F" stroke="#B8860B" stroke-width="1"/>' +
+        // 中央の紋章
+        '<circle cx="22" cy="30" r="6.5" fill="#F9A825"/>' +
+        '<circle cx="22" cy="30" r="4" fill="#C62828"/>' +
+        // 底面の飾り
+        '<path d="M9 44 L35 44" stroke="#F9A825" stroke-width="2.5" stroke-linecap="round"/>' +
+        '</svg>';
+
+      return {
+        url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+        scaledSize: new google.maps.Size(36, 42),
+        // 座標位置（パルスリングの中心）を胴体下部に合わせる：小さくし、やや下に配置してずれを解消
+        anchor: new google.maps.Point(18, 34)
+      };
+    }
+    // 各休憩所のピンを常時表示する（地図上に赤ピン＋名前ラベル）
+    let stationPins = [];
+    let stationPulses = [];  // 休憩所ピンのパルスリング
+    function renderStationPins(list) {
+      // 既存の休憩所ピンとパルスリングをクリア
+      stationPins.forEach(function(p) { p.setMap(null); });
+      stationPins = [];
+      stationPulses.forEach(function(p) { p.circle.setMap(null); });
+      stationPulses = [];
+
+      list.forEach(function(s) {
+        if (!s.lat || !s.lng) return;
+        const pin = new google.maps.Marker({
+          map: map,
+          position: { lat: s.lat, lng: s.lng },
+          // 名前をSVGに焼き込むことで、拡大・パンしてもラベルがピンから離れない
+          icon: getStationIcon(s.name)
+        });
+        pin.setTitle("「" + s.name + "」（タップで地図アプリで開く）");
+        // ピンクリックでOSネイティブの地図アプリを開く
+        pin.addListener("click", function() {
+          openNativeMap(s.lat, s.lng, s.name);
+        });
+        stationPins.push(pin);
+
+        // 「押せる」ことを示すパルスリング
+        const pulse = new google.maps.Circle({
+          map: map,
+          center: { lat: s.lat, lng: s.lng },
+          radius: 14,
+          strokeColor: "#F44336",
+          strokeWeight: 2,
+          strokeOpacity: 0.65,
+          fillColor: "#F44336",
+          fillOpacity: 0.12,
+          zIndex: 1,
+          clickable: false
+        });
+        stationPulses.push({ circle: pulse, baseRadius: 14 });
+      });
+      rebuildPulseCircles();
+    }
+
+    // パルスリング一覧を再構築（休憩所＋トイレを1本のタイマーで動かす）
+    function rebuildPulseCircles() {
+      pulseCircles = stationPulses.concat(toiletPulses);
+      startPulseLoop();
+    }
+
+    // 休憩所ピン用のSVGアイコン（赤ドット＋右側に白背景の名前ラベル）
+    function getStationIcon(name) {
+      var text = name || "";
+      // 文字幅の概算（全角=12px、半角=7px、font-size 12px）
+      var w = 0;
+      for (var i = 0; i < text.length; i++) {
+        var code = text.charCodeAt(i);
+        var isWide = (code >= 0x3040 && code <= 0x30FF) ||  // ひらがな・カタカナ
+                     (code >= 0x3400 && code <= 0x9FFF) ||  // CJK統合漢字
+                     (code >= 0xF900 && code <= 0xFAFF) ||  // CJK互換漢字
+                     (code >= 0xFF00 && code <= 0xFFEF);    // 全角記号・英数字
+        w += isWide ? 12 : 7;
+      }
+
+      var dotR = 7;              // ドットの半径
+      var dotX = dotR + 2;       // ドット中心のX（左余白）
+      var midY = 14;             // 垂直中央
+      var gap = 5;               // ドットとラベルの間隔
+      var textX = dotX + dotR + gap;      // テキストの開始X
+      var fontSize = 12;
+      var textBaseline = midY + 4;        // テキストのベースライン
+      var boxH = fontSize + 8;            // 白背景ボックスの高さ
+      var boxX = textX - 4;
+      var boxW = w + 8;
+      var totalW = boxX + boxW + 4;
+
+      var svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="' + totalW + '" height="' + (midY * 2) + '">' +
+          '<circle cx="' + dotX + '" cy="' + midY + '" r="' + dotR + '" fill="#F44336" fill-opacity="0.9" stroke="#FFFFFF" stroke-width="2"/>' +
+          '<rect x="' + boxX + '" y="' + (midY - boxH / 2) + '" width="' + boxW + '" height="' + boxH + '" rx="4" fill="#FFFFFF" fill-opacity="0.9"/>' +
+          '<text x="' + textX + '" y="' + textBaseline + '" font-size="' + fontSize + '" font-weight="bold" fill="#111111" font-family="sans-serif">' + esc(text) + '</text>' +
+        '</svg>';
+
+      return {
+        url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+        // ドット中心を座標位置に合わせる
+        anchor: new google.maps.Point(dotX, midY)
+      };
+    }
+
+    // ---- トイレのピン・リスト表示 ----
+    let toiletPins = [];
+    let toiletPulses = [];   // トイレピンのパルスリング
+
+    // 各トイレの黄色ピンを常時表示する
+    function renderToiletPins(list) {
+      // 既存のトイレピンとパルスリングをクリア
+      toiletPins.forEach(function(p) { p.setMap(null); });
+      toiletPins = [];
+      toiletPulses.forEach(function(p) { p.circle.setMap(null); });
+      toiletPulses = [];
+
+      list.forEach(function(s) {
+        if (!s.lat || !s.lng) return;
+        const pin = new google.maps.Marker({
+          map: map,
+          position: { lat: s.lat, lng: s.lng },
+          icon: getToiletIcon(s.name)
+        });
+        pin.setTitle("トイレ「" + s.name + "」（タップで地図アプリで開く）");
+        // ピンクリックでOSネイティブの地図アプリを開く
+        pin.addListener("click", function() {
+          openNativeMap(s.lat, s.lng, s.name);
+        });
+        toiletPins.push(pin);
+
+        // 「押せる」ことを示すパルスリング（水色＝🚻と同じイメージ）
+        const pulse = new google.maps.Circle({
+          map: map,
+          center: { lat: s.lat, lng: s.lng },
+          radius: 14,
+          strokeColor: "#2196F3",
+          strokeWeight: 2,
+          strokeOpacity: 0.65,
+          fillColor: "#2196F3",
+          fillOpacity: 0.12,
+          zIndex: 1,
+          clickable: false
+        });
+        toiletPulses.push({ circle: pulse, baseRadius: 14 });
+      });
+      rebuildPulseCircles();
+    }
+
+    // トイレピン用のSVGアイコン（水色ドット＋右側に白背景の名前ラベル）
+    function getToiletIcon(name) {
+      var text = name || "";
+      var w = 0;
+      for (var i = 0; i < text.length; i++) {
+        var code = text.charCodeAt(i);
+        var isWide = (code >= 0x3040 && code <= 0x30FF) ||
+                     (code >= 0x3400 && code <= 0x9FFF) ||
+                     (code >= 0xF900 && code <= 0xFAFF) ||
+                     (code >= 0xFF00 && code <= 0xFFEF);
+        w += isWide ? 12 : 7;
+      }
+
+      var dotR = 7;
+      var dotX = dotR + 2;
+      var midY = 14;
+      var gap = 5;
+      var textX = dotX + dotR + gap;
+      var fontSize = 12;
+      var textBaseline = midY + 4;
+      var boxH = fontSize + 8;
+      var boxX = textX - 4;
+      var boxW = w + 8;
+      var totalW = boxX + boxW + 4;
+
+      var svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="' + totalW + '" height="' + (midY * 2) + '">' +
+          '<circle cx="' + dotX + '" cy="' + midY + '" r="' + dotR + '" fill="#2196F3" fill-opacity="0.9" stroke="#FFFFFF" stroke-width="2"/>' + +
+          '<rect x="' + boxX + '" y="' + (midY - boxH / 2) + '" width="' + boxW + '" height="' + boxH + '" rx="4" fill="#FFFFFF" fill-opacity="0.9"/>' +
+          '<text x="' + textX + '" y="' + textBaseline + '" font-size="' + fontSize + '" font-weight="bold" fill="#111111" font-family="sans-serif">' + esc(text) + '</text>' +
+        '</svg>';
+
+      return {
+        url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+        anchor: new google.maps.Point(dotX, midY)
+      };
+    }
+
+    // トイレリスト（タブ「トイレ」の内容）を描画する
+    function renderToiletList(list) {
+      const toiletBody = document.getElementById("toiletBody");
+      toiletBody.innerHTML = "";
+
+      if (list.length === 0) {
+        toiletBody.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">トイレデータがありません</div>';
+        return;
+      }
+
+      list.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "timeline-item";
+        div.innerHTML = `
+          <div class="icon-box">🚻</div>
+          <div class="info-box">
+            <div class="spot-name">${esc(item.name)}</div>
+          </div>
+        `;
+        // 左のアイコンクリックで地図へジャンプ（休憩所タイムラインと同じ挙動）
+        const iconBox = div.querySelector(".icon-box");
+        if (item.lat && item.lng) {
+          iconBox.classList.add("clickable");
+          iconBox.title = "「" + item.name + "」を地図上に表示";
+          iconBox.onclick = () => flyToSpot(item.lat, item.lng);
+        } else {
+          iconBox.classList.add("no-coords");
+          iconBox.title = "位置情報なし";
+        }
+        toiletBody.appendChild(div);
+      });
+    }
+
+    // タブ切り替え（stations / toilets）
+    function switchTab(name) {
+      const stationsTab = document.getElementById("tabStations");
+      const toiletsTab = document.getElementById("tabToilets");
+      const timelineBody = document.getElementById("timelineBody");
+      const toiletBody = document.getElementById("toiletBody");
+
+      if (name === "toilets") {
+        stationsTab.classList.remove("active");
+        toiletsTab.classList.add("active");
+        timelineBody.style.display = "none";
+        toiletBody.style.display = "block";
+      } else {
+        toiletsTab.classList.remove("active");
+        stationsTab.classList.add("active");
+        toiletBody.style.display = "none";
+        timelineBody.style.display = "block";
+      }
+    }
+    // タイムラインのアイコン用：地図を指定位置へスクロールするだけ（メニューは出さない）
+    function flyToSpot(lat, lng) {
+      manualView = true;
+      const followBtn = document.getElementById("followBtn");
+      if (followBtn) followBtn.style.display = "block";
+
+      const pos = { lat: lat, lng: lng };
+
+      // 地図をその位置へ移動
+      map.setCenter(pos);
+      map.setZoom(16);
+
+      // 位置を示す赤ピンを立てる（まだ無ければ作る）
+      if (!spotMarker) {
+        spotMarker = new google.maps.Marker({
+          map: map,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 9,
+            fillColor: "#F44336",
+            fillOpacity: 1,
+            strokeColor: "#FFFFFF",
+            strokeWeight: 2
+          }
+        });
+      }
+      spotMarker.setPosition(pos);
+
+      // ページ（地図）までスクロール
+      const mapEl = document.getElementById("map");
+      if (mapEl && mapEl.scrollIntoView) {
+        mapEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      // 地図スクロール完了後にピンが見えるよう、少し待ってから再センタリング
+      setTimeout(function() {
+        map.panTo(pos);
+      }, 400);
+    }
+
+    // ---- 地図アプリを開く前の確認モーダル ----
+    let pendingMapUrl = null;
+
+    function showConfirmModal(title, text, url) {
+      pendingMapUrl = url;
+      document.getElementById("confirmTitle").textContent = title;
+      document.getElementById("confirmText").textContent = text;
+      document.getElementById("confirmModal").style.display = "flex";
+    }
+
+    function hideConfirmModal() {
+      document.getElementById("confirmModal").style.display = "none";
+      pendingMapUrl = null;
+    }
+
+    // ピンをタップしたとき、確認をしてから Google マップで開く（全端末共通）
+    // - iOS: Google マップアプリが入っていればアプリで、無ければ Safari の Web 版が開く
+    // - Android/PC: Google マップ（Web）で開く
+    // GAS は iframe 内で動くため window.open だと about:blank になることがあるので、
+    // 確認後に <a target="_top"> を生成してクリックし、iframe 全体を Google マップへ遷移させる
+    function openNativeMap(lat, lng, name) {
+      const ll = encodeURIComponent(lat + "," + lng);
+      const url = "https://www.google.com/maps?q=" + ll;
+      showConfirmModal("地図アプリで開きますか？", "「" + name + "」の位置を Google マップで確認します。", url);
+    }
+
+    // モーダルの「マップで開く」ボタン：確認後に実際の遷移を行う
+    // 注意: hideConfirmModal() が pendingMapUrl を null にするため、先に URL を退避してから閉じる
+    // 新規タブで開く（PC）。iOS では Safari の新規タブ、もしくは Google マップアプリが開く
+    function openPendingMap() {
+      const url = pendingMapUrl;
+      hideConfirmModal();
+      if (!url) return;
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  </script>
+</body>
+</html>

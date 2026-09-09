@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; box-sizing: border-box; }
+    .card { background: white; padding: 30px 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 340px; text-align: center; }
+    h1 { margin: 0 0 5px; font-size: 24px; color: #333; }
+    .sub { font-size: 13px; color: #888; margin-bottom: 20px; }
+    label { font-weight: bold; display: block; margin-bottom: 8px; color: #555; text-align: left; }
+    input[type=password] { width: 100%; padding: 15px; font-size: 18px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 15px; box-sizing: border-box; }
+    button { width: 100%; padding: 16px; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; background-color: #4caf50; color: white; cursor: pointer; }
+    button:disabled { opacity: 0.6; }
+    #msg { margin-top: 12px; font-weight: bold; font-size: 14px; color: #d32f2f; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="26" viewBox="0 0 44 52" style="vertical-align:-6px;">
+        <rect x="7" y="16" width="30" height="28" rx="2" fill="#C62828" stroke="#F9A825" stroke-width="2"/>
+        <path d="M4 16 L22 5 L40 16 Z" fill="#F9A825" stroke="#B8860B" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="5" cy="15" r="2.5" fill="#F9A825"/>
+        <circle cx="39" cy="15" r="2.5" fill="#F9A825"/>
+        <circle cx="22" cy="5" r="3.5" fill="#FFD54F" stroke="#B8860B" stroke-width="1"/>
+        <circle cx="22" cy="30" r="6.5" fill="#F9A825"/>
+        <circle cx="22" cy="30" r="4" fill="#C62828"/>
+        <path d="M9 44 L35 44" stroke="#F9A825" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      神輿なう</h1>
+    <div class="sub">役員用操作画面へのログイン</div>
+    <label for="pw">パスワード</label>
+    <input type="password" id="pw" placeholder="管理者パスワード" onkeydown="if(event.key==='Enter')doLogin()">
+    <button id="loginBtn" onclick="doLogin()">ログイン</button>
+    <p id="msg"></p>
+  </div>
+
+  <script>
+    function doLogin() {
+      var pw = document.getElementById('pw').value;
+      var msg = document.getElementById('msg');
+      var btn = document.getElementById('loginBtn');
+      if (!pw) { msg.innerText = 'パスワードを入力してください'; return; }
+
+      btn.disabled = true;
+      btn.innerText = '確認中...';
+      msg.innerText = '';
+
+      google.script.run.withSuccessHandler(function(res) {
+        if (res.success) {
+          // サーバーから取得した正しいWebアプリURL（exec）へセッショントークン付きで遷移
+          var url = res.baseUrl + '?mode=admin&token=' + encodeURIComponent(res.token);
+          window.top.location.href = url; // iframe解除して遷移
+        } else {
+          btn.disabled = false;
+          btn.innerText = 'ログイン';
+          msg.innerText = res.message;
+          document.getElementById('pw').value = '';
+        }
+      }).withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.innerText = 'ログイン';
+        msg.innerText = 'エラー: ' + err.message;
+      }).login(pw);
+    }
+  </script>
+</body>
+</html>

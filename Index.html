@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: sans-serif; padding: 15px; background-color: #f0f2f5; margin: 0; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    h2 { margin-top: 0; color: #333; font-size: 20px; text-align: center; }
+    label { font-weight: bold; display: block; margin-bottom: 8px; color: #555; }
+    select { width: 100%; padding: 15px; font-size: 18px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 15px; box-sizing: border-box; }
+    button { width: 100%; padding: 16px; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; margin: 6px 0; color: white; cursor: pointer; }
+    .btn-arr { background-color: #ff9800; } /* 到着：オレンジ */
+    .btn-dep { background-color: #2196f3; } /* 出発：青 */
+    .btn-gps { background-color: #4caf50; } /* GPS：緑 */
+    .btn-stop { background-color: #f44336; } /* 停止：赤 */
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    #stationStatus { font-size: 13px; font-weight: normal; color: #555; margin: -5px 0 12px; text-align: center; }
+    #msg, #gps-msg { margin-top: 10px; font-weight: bold; font-size: 14px; text-align: center; color: #333; }
+    .status-box { background: #e8f5e9; border: 1px solid #c8e6c9; padding: 10px; border-radius: 8px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <!-- タイトルヘッダー -->
+  <div style="text-align:center; margin-bottom:15px;">
+    <h1 style="margin:0; font-size:24px; color:#333;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="28" viewBox="0 0 44 52" style="vertical-align:-7px;">
+        <rect x="7" y="16" width="30" height="28" rx="2" fill="#C62828" stroke="#F9A825" stroke-width="2"/>
+        <path d="M4 16 L22 5 L40 16 Z" fill="#F9A825" stroke="#B8860B" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="5" cy="15" r="2.5" fill="#F9A825"/>
+        <circle cx="39" cy="15" r="2.5" fill="#F9A825"/>
+        <circle cx="22" cy="5" r="3.5" fill="#FFD54F" stroke="#B8860B" stroke-width="1"/>
+        <circle cx="22" cy="30" r="6.5" fill="#F9A825"/>
+        <circle cx="22" cy="30" r="4" fill="#C62828"/>
+        <path d="M9 44 L35 44" stroke="#F9A825" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      神輿なう
+    </h1>
+    <div style="font-size:12px; color:#888; margin-top:2px;">役員用操作画面</div>
+  </div>
+
+  <!-- 1. 休憩所 到着・出発ボタンエリア -->
+  <div class="card">
+    <h2>① 休憩所の通過記録</h2>
+    <label for="location">対象の休憩所を選択：</label>
+    <!-- ★初期状態は読み込み中表示 -->
+    <select id="location" onchange="updateButtons()">
+      <option value="">読み込み中...</option>
+    </select>
+    <p id="stationStatus" class="station-status"></p>
+
+    <label for="comment">コメント（任意）：</label>
+    <input type="text" id="comment" placeholder="例：渋滞で遅れ / 神輿休憩中" style="width:100%; padding:12px; font-size:16px; border-radius:8px; border:1px solid #ccc; margin-bottom:15px; box-sizing:border-box;">
+
+    <button id="arrBtn" class="btn-arr" onclick="sendStation('到着')">【 到 着 】を記録</button>
+    <button id="depBtn" class="btn-dep" onclick="sendStation('出発')">【 出 発 】を記録</button>
+    <p id="msg"></p>
+  </div>
+
+  <!-- 2. 全自動GPS追尾エリア -->
+  <div class="card">
+    <h2>② 位置情報（GPS）自動送信</h2>
+    <button id="startGpsBtn" class="btn-gps" onclick="startGps()">自動追尾をスタートする</button>
+    <button id="stopGpsBtn" class="btn-stop" onclick="stopGps()" style="display:none;">自動追尾を停止する</button>
+    
+    <div class="status-box">
+      <p id="gps-msg" style="margin:0;">状態: 停止中</p>
+    </div>
+  </div>
+
+  <script>
+    // ★画面読み込み時に「休憩所マスター」の一覧と記録状況を取得してドロップダウンを生成
+    var stationList = []; // [{ name, id, arrived, departed }]
+    var currentIdx = 0;   // 現在選択中の休憩所インデックス
+
+    window.onload = function() {
+      google.script.run.withSuccessHandler(function(stations) {
+        var select = document.getElementById('location');
+        select.innerHTML = ''; // 読み込み中メッセージをクリア
+
+        if (stations.length === 0) {
+          var opt = document.createElement('option');
+          opt.value = '';
+          opt.innerText = '休憩所データがありません';
+          select.appendChild(opt);
+          updateButtons();
+          return;
+        }
+
+        stationList = stations;
+        // まだ出発していない最初の休憩所を初期選択（打ち間違い防止）
+        currentIdx = 0;
+        for (var i = 0; i < stationList.length; i++) {
+          if (!stationList[i].departed) { currentIdx = i; break; }
+        }
+        renderDropdown();
+        updateButtons();
+      }).getStations();
+    };
+
+    // ドロップダウン再描画（選択値はインデックス）
+    function renderDropdown() {
+      var select = document.getElementById('location');
+      select.innerHTML = '';
+      stationList.forEach(function(s, i) {
+        var opt = document.createElement('option');
+        opt.value = i;
+        opt.innerText = (s.arrived ? '✓ ' : '') + s.name + (s.departed ? '（出発済）' : '');
+        select.appendChild(opt);
+      });
+      select.value = String(currentIdx);
+    }
+
+    // 選択中の休憩所に応じてボタンの有効/無効と状態表示を更新
+    function updateButtons() {
+      var arrBtn = document.getElementById('arrBtn');
+      var depBtn = document.getElementById('depBtn');
+      var statusEl = document.getElementById('stationStatus');
+      var select = document.getElementById('location');
+
+      if (stationList.length === 0 || !select || !arrBtn) return;
+
+      // ドロップダウンの現在値を同期（手動変更にも追従）
+      currentIdx = Number(select.value) || 0;
+      var s = stationList[currentIdx];
+      if (!s) return;
+
+      // 到着済みなら到着ボタンを無効、未到着 or 出発済みなら出発ボタンを無効
+      arrBtn.disabled = s.arrived;
+      depBtn.disabled = !s.arrived || s.departed;
+
+      if (s.arrived && s.departed) {
+        statusEl.innerText = '✅ この休憩所は通過済みです（次の休憩所を選択してください）';
+      } else if (s.arrived) {
+        statusEl.innerText = '🕐 到着済みです。「出発」を記録できます';
+      } else {
+        statusEl.innerText = '🚩 この休憩所には未到着です。「到着」を記録してください';
+      }
+    }
+
+    // --- 1. 手動ボタンの送信処理 ---
+    function sendStation(status) {
+      var msg = document.getElementById('msg');
+      var s = stationList[currentIdx];
+
+      if (!s) {
+        msg.innerText = "休憩所を選択してください";
+        return;
+      }
+      // 打ち間違い防止：状態が不正なボタンは押せないが、念のため再チェック
+      if (status === "到着" && s.arrived) {
+        msg.innerText = "この休憩所は到着済みです";
+        return;
+      }
+      if (status === "出発" && (!s.arrived || s.departed)) {
+        msg.innerText = "出発は「到着記録後・出発前」のみ記録できます";
+        return;
+      }
+
+      var comment = document.getElementById('comment').value.trim();
+      msg.innerText = "送信中...";
+
+      google.script.run.withSuccessHandler(function(res) {
+        msg.innerText = res;
+        document.getElementById('comment').value = ''; // 送信後にコメント欄をクリア
+
+        // 記録成功：ローカル状態を更新
+        if (status === "到着") {
+          s.arrived = true;
+          renderDropdown();
+          updateButtons();
+        } else if (status === "出発") {
+          s.departed = true;
+          // 次の休憩所へ自動移動（あれば）
+          if (currentIdx + 1 < stationList.length) {
+            currentIdx = currentIdx + 1;
+          }
+          renderDropdown();
+          updateButtons();
+        }
+      }).recordStation({ location: s.name, status: status, comment: comment });
+    }
+
+    // --- 2. 全自動GPSの送信処理 ---
+    var timerId = null;
+    var INTERVAL_MINUTES = 3; // ★自動送信の間隔（3分ごと）
+
+    function sendGpsLocation() {
+      var gpsMsg = document.getElementById('gps-msg');
+      gpsMsg.innerText = "GPS送信中...";
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(pos) {
+          google.script.run.withSuccessHandler(function(res) {
+            var now = new Date().toLocaleTimeString();
+            gpsMsg.innerText = "自動送信中 (最終送信: " + now + ")\n※次回は" + INTERVAL_MINUTES + "分後";
+          }).recordGPS({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude
+          });
+        }, function(err) {
+          gpsMsg.innerText = "GPS取得エラー: " + err.message;
+        }, { enableHighAccuracy: true, timeout: 10000 });
+      } else {
+        gpsMsg.innerText = "お使いの端末はGPS非対応です";
+      }
+    }
+
+    function startGps() {
+      sendGpsLocation(); // 開始直後に1度送信
+      timerId = setInterval(sendGpsLocation, INTERVAL_MINUTES * 60 * 1000);
+      document.getElementById('startGpsBtn').style.display = 'none';
+      document.getElementById('stopGpsBtn').style.display = 'block';
+    }
+
+    function stopGps() {
+      if (timerId) clearInterval(timerId);
+      document.getElementById('startGpsBtn').style.display = 'block';
+      document.getElementById('stopGpsBtn').style.display = 'none';
+      document.getElementById('gps-msg').innerText = "状態: 停止中";
+    }
+  </script>
+</body>
+</html>
