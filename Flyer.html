@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>神輿なう - チラシ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Segoe UI", sans-serif;
+    /* プレビュー時は紙の外側をグレーに（印刷時は白） */
+    background: #3a3a3a;
+    color: #1c1c1c;
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  /* ---- A4シート（210mm × 297mm）紙面いっぱい ---- */
+  .sheet {
+    width: 210mm;
+    max-width: 100%;
+    aspect-ratio: 210 / 297;   /* 画面プレビューでもA4比率を維持 */
+    background: #ffffff;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.55);  /* プレビュー用の紙の影 */
+    display: flex;
+    flex-direction: column;
+    padding: 8mm 12mm 6mm;
+    overflow: hidden;
+  }
+
+  /* 上部の飾り（お祭りっぽい帯：上下左右をはみ出させて紙の端までミチミチに） */
+  .top-band {
+    height: 7mm;
+    margin: -8mm -12mm 7mm;
+    background: linear-gradient(90deg, #C62828 0%, #F9A825 40%, #F9A825 60%, #C62828 100%);
+    border-bottom: 2mm solid #B8860B;
+    box-shadow: 0 2mm 4mm rgba(0,0,0,0.15);
+  }
+
+  /* タイトル */
+  .hero { text-align: center; }
+  .logo { margin-bottom: 2mm; }
+  h1 {
+    font-size: 27mm;
+    font-weight: 900;
+    letter-spacing: 2mm;
+    color: #C62828;
+    text-shadow: 1.5mm 1.5mm 0 #F9A825;
+    line-height: 1.05;
+  }
+  .h1-sub {
+    font-size: 6mm;
+    font-weight: 700;
+    color: #7a3a00;
+    letter-spacing: 1mm;
+    margin-top: 3mm;
+  }
+
+  /* 簡単な説明 */
+  .desc {
+    font-size: 4.2mm;
+    line-height: 1.8;
+    color: #333;
+    text-align: center;
+    margin-top: 5mm;
+  }
+  .desc b { color: #C62828; }
+
+  /* ---- 超でっかいQRコード（残りのスペースを全部使う） ---- */
+  .qr-wrap {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3mm;
+    padding: 3mm 0 2mm;
+  }
+  .qr-label {
+    font-size: 5mm;
+    font-weight: 800;
+    color: #C62828;
+    letter-spacing: 1.5mm;
+  }
+  #qrcode {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;   /* QRの背景を透過 */
+  }
+  #qrcode img, #qrcode canvas {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto !important;
+    height: auto !important;
+    display: block;
+  }
+
+  /* 最下部：3つの特徴 */
+  .features {
+    display: flex;
+    justify-content: space-around;
+    gap: 4mm;
+    padding-top: 3mm;
+    border-top: 0.6mm solid #F9A825;
+  }
+  .feature {
+    display: flex;
+    align-items: center;
+    gap: 2mm;
+    font-size: 3.8mm;
+    font-weight: 700;
+    color: #444;
+  }
+  .feature .dot {
+    width: 4.5mm;
+    height: 4.5mm;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0.4mm rgba(0,0,0,0.25) inset;
+  }
+  .feature .dot.red   { background: #F44336; }
+  .feature .dot.gold  { background: #F9A825; }
+  .feature .dot.blue  { background: #2196F3; }
+
+  /* ---- 印刷時：A4用紙いっぱい ---- */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .sheet {
+      width: 210mm;
+      height: 297mm;
+      max-width: none;
+      aspect-ratio: auto;
+      box-shadow: none;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <!-- 上部の飾り（お祭りっぽい帯） -->
+  <div class="top-band"></div>
+
+  <!-- タイトル -->
+  <div class="hero">
+    <div class="logo">
+      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="76" viewBox="0 0 44 52">
+        <rect x="7" y="16" width="30" height="28" rx="2" fill="#C62828" stroke="#F9A825" stroke-width="2"/>
+        <path d="M4 16 L22 5 L40 16 Z" fill="#F9A825" stroke="#B8860B" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="5" cy="15" r="2.5" fill="#F9A825"/>
+        <circle cx="39" cy="15" r="2.5" fill="#F9A825"/>
+        <circle cx="22" cy="5" r="3.5" fill="#FFD54F" stroke="#B8860B" stroke-width="1"/>
+        <circle cx="22" cy="30" r="6.5" fill="#F9A825"/>
+        <circle cx="22" cy="30" r="4" fill="#C62828"/>
+        <path d="M9 44 L35 44" stroke="#F9A825" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1>神輿なう</h1>
+    <div class="h1-sub">お神輿の現在位置をリアルタイムで確認</div>
+  </div>
+
+
+  <!-- 超でっかいQRコード（残りの紙面を全部使う） -->
+  <div class="qr-wrap">
+    <div class="qr-label">📱 スマホで読み取る</div>
+    <div id="qrcode"></div>
+  </div>
+
+  <!-- 最下部：3つの特徴 -->
+  <div class="features">
+    <div class="feature"><span class="dot red"></span>お神輿の現在位置を地図表示</div>
+    <div class="feature"><span class="dot gold"></span>休憩所の状況をリアルタイムで確認</div>
+    <div class="feature"><span class="dot blue"></span>トイレの位置もわかる</div>
+  </div>
+</div>
+
+<!-- QRコード生成ライブラリ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  // ★ここをデプロイしたWebアプリの閲覧画面URL（一般公開）に書き換えてください
+  // 例: "https://script.google.com/macros/s/XXXXXXX/exec"
+  const APP_URL = "https://script.google.com/macros/s/AKfycbxNa8-3-XGMNda9DOOK0ZBqDb6WiwXTGGoBDxEFbB7wlW3omSlRY98TSS8V8VcuT2Y0uw/exec";
+
+  // 上のQRコードを画像として印刷したい場合、ダウンロードも可能
+  new QRCode(document.getElementById("qrcode"), {
+    text: APP_URL,
+    width: 1600,
+    height: 1600,
+    colorDark: "#1c1c1c",
+    colorLight: "rgba(0,0,0,0)",   // 透過: 明るいマスを描かない → 背景が透ける
+    correctLevel: QRCode.CorrectLevel.M
+  });
+</script>
+</body>
+</html>
