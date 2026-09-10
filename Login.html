@@ -50,7 +50,16 @@
         if (res.success) {
           // サーバーから取得した正しいWebアプリURL（exec）へセッショントークン付きで遷移
           var url = res.baseUrl + '?mode=admin&token=' + encodeURIComponent(res.token);
-          window.top.location.href = url; // iframe解除して遷移
+          // iOS Safari では window.top.location.href への書き込みが iframe のサンドボックス
+          // 制限でブロックされ「確認中...」のまま固まるため、<a target="_top"> を生成して
+          // クリックすることで、トップレベル（iframe 外）への遷移を確実に行う
+          var a = document.createElement('a');
+          a.href = url;
+          a.target = '_top';
+          a.rel = 'noopener';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
         } else {
           btn.disabled = false;
           btn.innerText = 'ログイン';
