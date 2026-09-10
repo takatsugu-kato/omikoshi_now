@@ -185,9 +185,13 @@
 <!-- QRコード生成ライブラリ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-  // ★ここをデプロイしたWebアプリの閲覧画面URL（一般公開）に書き換えてください
-  // 例: "https://script.google.com/macros/s/XXXXXXX/exec"
-  const APP_URL = "https://script.google.com/macros/s/AKfycbxNa8-3-XGMNda9DOOK0ZBqDb6WiwXTGGoBDxEFbB7wlW3omSlRY98TSS8V8VcuT2Y0uw/exec";
+  // ★ここを閲覧者に配る URL に書き換えてください
+  // GitHub Pages の場合:
+  //   https://<ユーザー名>.github.io/<リポジトリ名>/
+  // 例: "https://takatsugu-kato.github.io/omikoshi_now/"
+  // ※ GAS の exec URL のままにすると「Google Apps Script のユーザーによって作成されました」
+  //    バナーが表示されるため、GitHub Pages の index.html（ラッパー）経由にすること
+  const APP_URL = "https://takatsugu-kato.github.io/omikoshi_now/";
 
   // 上のQRコードを画像として印刷したい場合、ダウンロードも可能
   new QRCode(document.getElementById("qrcode"), {

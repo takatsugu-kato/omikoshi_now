@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>神輿なう</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      height: 100%;
+      background: #121212;
+      overflow: hidden;
+    }
+    iframe {
+      border: none;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    ★重要★
+    このページは「このアプリケーションは Google Apps Script のユーザーによって作成されました」
+    というバナーを表示させずに Web アプリ全体を表示するためのラッパー（親）ページです。
+    GAS の Web アプリ（exec URL）を iframe で読み込むことで、バナーは iframe 内にのみ表示され、
+    このページ自体には表示されません。
+
+    このファイルは GitHub Pages での公開用です（index.html がサイトのトップページになります）。
+    配置手順:
+    1. このファイルを GitHub リポジトリのルート（main ブランチ）に置く
+    2. リポジトリの Settings → Pages で「Deploy from a branch」→ main / (root) を選択
+    3. 下の GAS_APP_URL に、デプロイした Web アプリの「閲覧画面（exec）」URL を書き換える
+    4. https://<ユーザー名>.github.io/<リポジトリ名>/ を閲覧者に配る（QR コードもこの URL）
+
+    注意:
+    - GAS 側 (code.gs) に .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL) が
+      必要です（本リポジトリの code.gs には追加済み）。
+    - バナー自体は Google が挿入するものであり、完全に消すことはできません。
+      この iframe 方式は「親ページからは見えなくする」回避策です。
+  -->
+  <iframe id="gasiframe" src="about:blank" allowfullscreen></iframe>
+
+  <script>
+    // ★ここにデプロイした Web アプリの閲覧画面 URL（exec）を設定してください
+    // 例: "https://script.google.com/macros/s/ABCDEFGHIJKLMNOPQRSTUVWXYZ/exec"
+    const GAS_APP_URL = "https://script.google.com/macros/s/AKfycbxNa8-3-XGMNda9DOOK0ZBqDb6WiwXTGGoBDxEFbB7wlW3omSlRY98TSS8V8VcuT2Y0uw/exec";
+
+    // クエリパラメータ（?mode=admin など）をそのまま GAS アプリへ引き継ぐ
+    // GitHub Pages では /?mode=admin の形式でアクセスできる
+    document.getElementById('gasiframe').src = GAS_APP_URL + window.location.search;
+  </script>
+</body>
+</html>

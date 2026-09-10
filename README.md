@@ -3,7 +3,7 @@
 お神輿（みこし）の現在位置・運行状況をリアルタイムに共有する **Google Apps Script (GAS) 製 Web アプリ**です。
 
 - **閲覧画面（Viewer）**: お神輿の現在位置を地図で表示し、休憩所の通過状況・遅延などを誰でも確認できます
-- **役員用操作画面（Index）**: パスワード認証付きで、休憩所の到着・出発や GPS 自動追尾を記録します
+- **役員用操作画面（Admin）**: パスワード認証付きで、休憩所の到着・出発や GPS 自動追尾を記録します
 
 データの保存先は Google スプレッドシートなので、専用サーバーは不要です。
 
@@ -36,7 +36,8 @@
 | `code.gs` | GAS バックエンド | ルーティング・認証・各種データ取得/記録 |
 | `Viewer.html` | フロント（閲覧） | 一般公開の閲覧画面（地図・タイムライン・遅延表示） |
 | `Login.html` | フロント（ログイン） | 役員用操作画面へのログイン画面 |
-| `Index.html` | フロント（操作） | 羽織用操作画面（到着/出発記録・GPS 自動送信） |
+| `Admin.html` | フロント（操作） | 役員用操作画面（到着/出発記録・GPS 自動送信） |
+| `index.html` | ラッパー（公開用） | GitHub Pages のトップページ。GAS Web アプリを iframe で表示し、Google の警告バナーを隠す（**GAS には入れない**） |
 
 ---
 
@@ -61,9 +62,10 @@ Google スプレッドシートを新規作成し、**以下のシートを正�
 
 1. スプレッドシートのメニューから **拡張機能 → Apps Script** を開く
 2. プロジェクトを「神輿なう」などにリネーム
-3. `code.gs` / `Viewer.html` / `Login.html` / `Index.html` をそれぞれ新規作成して、本リポジトリの内容を貼り付ける
+3. `code.gs` / `Viewer.html` / `Login.html` / `Admin.html` をそれぞれ新規作成して、本リポジトリの内容を貼り付ける
 
-> 注意: `Index.html` という大文字のファイル名は、`HtmlService.createHtmlOutputFromFile('Index')` と対応しています。ファイル名（大文字小文字含む）を変える場合は `code.gs` 側も合わせて変更してください。
+> 注意: `Admin.html` というファイル名は、`HtmlService.createHtmlOutputFromFile('Admin')` と対応しています。ファイル名（大文字小文字含む）を変える場合は `code.gs` 側も合わせて変更してください。
+> また `index.html`（ラッパー）は GitHub Pages 用であり、**GAS プロジェクトには入れないでください**。GAS のファイル名は大文字小文字を区別しないため、`index.html` を入れると役員用の `Admin.html`（旧 `Index.html`）と衝突して上書きされてしまいます。
 
 ### 3. スクリプトプロパティの設定
 
@@ -89,13 +91,41 @@ GAS エディタの **プロジェクトの設定 → スクリプトプロパ�
 3. **アクセスできるユーザー: 全員（匿名ユーザーを含む）** に設定
 4. デプロイすると発行された Web アプリ URL が「閲覧画面」になります
 
+### 6. （任意）「Google Apps Script のユーザーによって作成されました」バナーを隠す
+
+GAS の Web アプリ（匿名公開）のページ上部には、Google が自動で **「このアプリケーションは Google Apps Script のユーザーによって作成されました」** という警告バナーを挿入します。これはコードでは消せませんが、**通常の Web ページの iframe で Web アプリを表示する**ことで、閲覧者にはバナーを見せずに済みます。
+
+本リポジトリの `index.html` がラッパー（親ページ）です。以下の手順で GitHub Pages に配置します。
+
+#### 6-1. GitHub リポジトリの準備
+
+- GitHub にリポジトリを作成し、本リポジトリのファイル（`index.html`・`code.gs`・`Viewer.html` など）をプッシュする
+- リポジトリは公開（public）である必要があります（無料アカウントの場合）
+
+#### 6-2. GitHub Pages を有効化
+
+1. GitHub のリポジトリページで **Settings → Pages** を開く
+2. **Build and deployment** の **Source** で **Deploy from a branch** を選択
+3. **Branch** を **main** / **`/ (root)`** に設定して **Save**
+4. しばらくすると `https://<ユーザー名>.github.io/<リポジトリ名>/` でサイトが公開されます（初回は最大 10 分程度かかります）
+
+#### 6-3. 動作確認と QR コードの更新
+
+1. `https://<ユーザー名>.github.io/<リポジトリ名>/` にアクセスし、バナーなしで閲覧画面が表示されることを確認
+2. `index.html` の `GAS_APP_URL` に、デプロイした Web アプリ URL（閲覧画面）が設定されていることを確認済みかチェック（未設定なら書き換える）
+3. `Flyer.html` の `APP_URL` を GitHub Pages の URL（上記）に変更して QR コードを再発行
+4. `code.gs` には `setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)` が追加済みなので、変更後は GAS を**再デプロイ（新しいバージョン）** してください
+
+> 注意: バナー自体は Google が挿入するもので、完全に削除はできません。iframe 方式は「親ページからは見えなくする」回避策です。
+> 一部の環境（Safari のプライベートブラウズ等）では iframe 内でもバナーが表示されることがあります。
+
 ---
 
 ## 使い方
 
 ### 閲覧画面（一般公開）
 
-Web アプリ URL にアクセスすると表示される画面です。
+GitHub Pages の URL（または Web アプリ URL）にアクセスすると表示される画面です。
 
 - 🗺️ **地図**: お神輿の現在位置（金と紅のアイコン）を自動追従。休憩所は赤ピン、トイレは青ピンで常時表示
 - 📊 **ステータスカード**: 現在の状況を「移動中」「休憩中」「渡御終了」の3状態で色分け表示（遅延/巻きも表示）
@@ -106,10 +136,10 @@ Web アプリ URL にアクセスすると表示される画面です。
 
 ### 役員用操作画面
 
-Web アプリ URL に `?mode=admin` を付けてアクセス（例: `https://script.google.com/macros/s/xxx/exec?mode=admin`）。
+**GitHub Pages の URL** に `?mode=admin` を付けてアクセス（例: `https://<ユーザー名>.github.io/<リポジトリ名>/?mode=admin`）。ラッパーがクエリパラメータを GAS アプリへ引き継ぎます（Web アプリ URL 直アクセスの場合は `https://script.google.com/macros/s/xxx/exec?mode=admin`）。
 
 - 初回は `Login.html` が表示されるので、`ADMIN_PASSWORD` に設定したパスワードでログイン
-- ログイン後は 12 時間有効なセッショントークンが発行され、`Index.html`（操作画面）が表示される
+- ログイン後は 12 時間有効なセッショントークンが発行され、`Admin.html`（操作画面）が表示される
 
 操作画面でできること:
 
@@ -135,7 +165,7 @@ curl -X POST -H "Content-Type: application/json" \
 
 ### iPhone ショートカットでの GPS 定期送信
 
-ブラウザの GPS 自動追尾（`Index.html`）は画面を閉じると止まりますが、iPhone の「ショートカット」アプリから同じ `doPost` を呼び出せば、**実行中は画面を開いたまま**、定期的に現在地を送信できます。
+ブラウザの GPS 自動追尾（`Admin.html`）は画面を閉じると止まりますが、iPhone の「ショートカット」アプリから同じ `doPost` を呼び出せば、**実行中は画面を開いたまま**、定期的に現在地を送信できます。
 
 #### ショートカットの組み立て方
 
@@ -216,12 +246,12 @@ curl -X POST -H "Content-Type: application/json" \
 
 | 関数 | 呼び出し元 | 用途 |
 | --- | --- | --- |
-| `doGet` | — | URL ルーティング（Viewer / Login / Index） |
+| `doGet` | — | URL ルーティング（Viewer / Login / Admin） |
 | `login` | Login.html | パスワード認証＋セッショントークン発行 |
-| `getGmapApiKey` | Index.html / Viewer.html | Maps API キー取得 |
-| `getStations` | Index.html | 休憩所一覧（記録状態つき）取得 |
-| `recordStation` | Index.html | 到着/出発記録 |
-| `recordGPS` | Index.html | GPS 座標記録 |
+| `getGmapApiKey` | Admin.html / Viewer.html | Maps API キー取得 |
+| `getStations` | Admin.html | 休憩所一覧（記録状態つき）取得 |
+| `recordStation` | Admin.html | 到着/出発記録 |
+| `recordGPS` | Admin.html | GPS 座標記録 |
 | `getViewerData` | Viewer.html | 閲覧画面用データ取得（GPS・遅延・タイムライン等） |
 | `doPost` | 外部アプリ | JSON で GPS 座標を受信 |
 
@@ -234,3 +264,4 @@ curl -X POST -H "Content-Type: application/json" \
 - **GPS 自動送信はブラウザが開いている間のみ**: スマホの画面が閉じられると送信が止まります（バッテリー最適化の影響も受けます）。長時間の追尾が必要な場合は、[iPhone ショートカットでの GPS 定期送信](#iphone-ショートカットでの-gps-定期送信) を参照してください
 - **スプレッドシートの規模**: ログが大量に増えると取得・描画が遅くなるため、祭り期間後に `GPSログ` の古い行を削除するなどのメンテナンスが有効です
 - **タイムゾーン**: 時刻は JST（日本標準時）基準でフォーマットしています
+- **警告バナー**: 匿名公開の GAS Web アプリには Google が「このアプリケーションは Google Apps Script のユーザーによって作成されました」バナーを自動挿入します。コードでは消せないため、隠したい場合は [`index.html`](#6-任意google-apps-script-のユーザーによって作成されましたバナーを隠す)（GitHub Pages ラッパー）の iframe 方式を使います

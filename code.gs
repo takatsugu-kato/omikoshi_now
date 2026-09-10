@@ -10,24 +10,27 @@ function doGet(e) {
   var mode = (e && e.parameter && e.parameter.mode) ? e.parameter.mode.toLowerCase() : "";
   var token = (e && e.parameter && e.parameter.token) ? e.parameter.token : "";
   
-  // ?mode=admin のときだけ Index（役員用操作画面）を表示（要ログイン）
+  // ?mode=admin のときだけ Admin（役員用操作画面）を表示（要ログイン）
   if (mode === 'admin') {
     // セッショントークンを検証
     if (token && CacheService.getScriptCache().get('admin_session_' + token)) {
-      return HtmlService.createHtmlOutputFromFile('Index')
+      return HtmlService.createHtmlOutputFromFile('Admin')
         .setTitle('神輿なう - 管理')
-        .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
     // 未ログインならログイン画面を表示
     return HtmlService.createHtmlOutputFromFile('Login')
       .setTitle('神輿なう - ログイン')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
   
   // それ以外（パラメータなし含む）はすべて Viewer（閲覧画面）を表示
   return HtmlService.createHtmlOutputFromFile('Viewer')
     .setTitle('神輿なう')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 // ログイン処理：パスワードを検証してセッショントークンを発行する
