@@ -82,21 +82,10 @@
     <p id="msg"></p>
   </div>
 
-  <!-- 2. 全自動GPS追尾エリア -->
-  <div class="card">
-    <h2>② 位置情報（GPS）自動送信</h2>
-    <button id="startGpsBtn" class="btn-gps" onclick="startGps()">自動追尾をスタートする</button>
-    <button id="stopGpsBtn" class="btn-stop" onclick="stopGps()" style="display:none;">自動追尾を停止する</button>
-    
-    <div class="status-box">
-      <p id="gps-msg" style="margin:0;">状態: 停止中</p>
-    </div>
-  </div>
-
-  <!-- 3. お知らせコメント 投稿＆表示制御エリア -->
+  <!-- 2. お知らせコメント 投稿＆表示制御エリア -->
   <div class="comment-card">
     <div class="comment-header">
-      <h2>③ お知らせコメント</h2>
+      <h2>② お知らせコメント</h2>
       <div class="toggle-row">
         <span id="toggleLabel">表示中</span>
         <label class="switch">
@@ -109,6 +98,17 @@
     <textarea id="newComment" placeholder="閲覧画面に表示するお知らせを入力（例：現在、〇〇で休憩中です）"></textarea>
     <button id="postCommentBtn" class="comment-post-btn" onclick="postComment()">投稿する</button>
     <p id="commentMsg"></p>
+  </div>
+
+  <!-- 3. 全自動GPS追尾エリア -->
+  <div class="card">
+    <h2>③ 位置情報（GPS）自動送信</h2>
+    <button id="startGpsBtn" class="btn-gps" onclick="startGps()">自動追尾をスタートする</button>
+    <button id="stopGpsBtn" class="btn-stop" onclick="stopGps()" style="display:none;">自動追尾を停止する</button>
+    
+    <div class="status-box">
+      <p id="gps-msg" style="margin:0;">状態: 停止中</p>
+    </div>
   </div>
 
   <script>
@@ -155,7 +155,7 @@
       select.value = String(currentIdx);
     }
 
-    // --- 3. お知らせコメントの投稿・表示制御 ---
+    // --- 2. お知らせコメントの投稿・表示制御 ---
     // 初期化：最新コメントを表示し、スイッチの状態をサーバーと同期する
     function initCommentArea() {
       google.script.run
@@ -299,7 +299,7 @@
       }).recordStation({ location: s.name, status: status, comment: comment });
     }
 
-    // --- 2. 全自動GPSの送信処理 ---
+    // --- 3. 全自動GPSの送信処理 ---
     var timerId = null;
     var INTERVAL_MINUTES = 3; // ★自動送信の間隔（3分ごと）
 
