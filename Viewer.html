@@ -113,6 +113,40 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       transition: background-color 0.3s;
     }
+    /* お知らせコメントカード（運行状況カードの上に配置。コメントがない場合や
+       表示OFFの場合は非表示にして縦幅を確保する） */
+    .comment-card {
+      background-color: #1e1e1e;
+      border-left: 4px solid #ffd54f; /* 左端のアクセントライン（黄色） */
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      word-break: break-word;
+    }
+    .comment-card .comment-label {
+      font-size: 12px;
+      color: #ffd54f;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .comment-card .comment-label svg {
+      flex-shrink: 0;
+    }
+    .comment-card .comment-text {
+      font-size: 17px;
+      font-weight: bold;
+      line-height: 1.5;
+      color: #ffffff;
+      white-space: pre-wrap;
+    }
+    .comment-card .comment-time {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 6px;
+    }
     /* 状態別の背景色 */
     .status-card.rest {
       background-color: #78350f; /* 休憩中：ダークブラウン（赤系文字が読みやすい） */
@@ -451,6 +485,19 @@
     <span class="hint-note">ピンをタップすると地図アプリで場所を確認できます</span>
   </div>
 
+  <!-- お知らせコメントカード（最新コメント1件を表示。コメントがない場合や
+       表示OFFの場合は非表示にして縦幅を確保する） -->
+  <div class="comment-card" id="commentCard" style="display:none;">
+    <div class="comment-label">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+      </svg>
+      お知らせ
+    </div>
+    <div class="comment-text" id="commentText"></div>
+    <div class="comment-time" id="commentTime"></div>
+  </div>
+
   <!-- 上段：ステータスカード -->
   <div class="status-card" id="statusCard">
     <div class="status-title">● 読み込み中</div>
@@ -636,7 +683,18 @@
     }
 
     function renderData(data) {
-      // 0. 位置情報の最終更新時刻を表示
+      // 0. お知らせコメント（最新1件）を表示（表示ON かつ コメントがある場合のみ）
+      const commentCard = document.getElementById("commentCard");
+      const showComment = data.commentVisible !== false && data.comment && data.comment.text;
+      if (showComment && data.comment) {
+        commentCard.style.display = "block";
+        document.getElementById("commentText").textContent = data.comment.text;
+        document.getElementById("commentTime").textContent = "🕐 " + data.comment.timestamp;
+      } else {
+        commentCard.style.display = "none";
+      }
+
+      // 1. 位置情報の最終更新時刻を表示
       const gpsInfo = document.getElementById("gpsInfo");
       if (data.gps) {
         gpsInfo.innerHTML = `🛰 位置情報 最終更新 <b>${esc(data.gps.timestamp)}</b>`;

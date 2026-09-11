@@ -17,6 +17,31 @@
     #stationStatus { font-size: 13px; font-weight: normal; color: #555; margin: -5px 0 12px; text-align: center; }
     #msg, #gps-msg { margin-top: 10px; font-weight: bold; font-size: 14px; text-align: center; color: #333; }
     .status-box { background: #e8f5e9; border: 1px solid #c8e6c9; padding: 10px; border-radius: 8px; margin-top: 10px; }
+
+    /* ---- お知らせコメントエリア ---- */
+    .comment-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .comment-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .comment-header h2 { margin: 0; }
+    /* 表示ON/OFFトグルスイッチ */
+    .toggle-row { display: flex; align-items: center; gap: 10px; font-size: 15px; color: #555; font-weight: bold; }
+    .switch { position: relative; display: inline-block; width: 52px; height: 28px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #ccc; border-radius: 28px; transition: 0.3s;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px;
+      background-color: white; border-radius: 50%; transition: 0.3s;
+    }
+    .switch input:checked + .slider { background-color: #4caf50; }
+    .switch input:checked + .slider:before { transform: translateX(24px); }
+    textarea#newComment {
+      width: 100%; padding: 12px; font-size: 16px; border-radius: 8px;
+      border: 1px solid #ccc; margin-bottom: 15px; box-sizing: border-box; resize: vertical; min-height: 70px;
+    }
+    .comment-post-btn { background-color: #4caf50; }
+    .calendar-footer { font-size: 13px; color: #888; margin-top: 10px; text-align: center; }
   </style>
 </head>
 <body>
@@ -68,6 +93,24 @@
     </div>
   </div>
 
+  <!-- 3. お知らせコメント 投稿＆表示制御エリア -->
+  <div class="comment-card">
+    <div class="comment-header">
+      <h2>③ お知らせコメント</h2>
+      <div class="toggle-row">
+        <span id="toggleLabel">表示中</span>
+        <label class="switch">
+          <input type="checkbox" id="commentVisibleToggle" onchange="toggleCommentVisibility()">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+    <label for="newComment">投稿するコメント：</label>
+    <textarea id="newComment" placeholder="閲覧画面に表示するお知らせを入力（例：現在、〇〇で休憩中です）"></textarea>
+    <button id="postCommentBtn" class="comment-post-btn" onclick="postComment()">投稿する</button>
+    <p id="commentMsg"></p>
+  </div>
+
   <script>
     // ★画面読み込み時に「休憩所マスター」の一覧と記録状況を取得してドロップダウンを生成
     var stationList = []; // [{ name, id, arrived, departed }]
@@ -95,6 +138,7 @@
         }
         renderDropdown();
         updateButtons();
+        initCommentArea(); // お知らせコメント領域の初期化
       }).getStations();
     };
 
@@ -109,6 +153,80 @@
         select.appendChild(opt);
       });
       select.value = String(currentIdx);
+    }
+
+    // --- 3. お知らせコメントの投稿・表示制御 ---
+    // 初期化：最新コメントを表示し、スイッチの状態をサーバーと同期する
+    function initCommentArea() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          var toggle = document.getElementById('commentVisibleToggle');
+          if (data.visible) {
+            toggle.checked = true;
+          } else {
+            toggle.checked = false;
+          }
+          updateToggleLabel();
+
+          // 最新コメントをプレースホルダーとして表示（参考用）
+          if (data.latest && data.latest.text) {
+            document.getElementById('newComment').placeholder =
+              '最新: [' + data.latest.timestamp + '] ' + data.latest.text;
+          }
+        })
+        .withFailureHandler(function(err) {
+          console.log('コメント表示設定の取得に失敗: ' + err.message);
+        })
+        .getCommentSettings();
+    }
+
+    function updateToggleLabel() {
+      var toggle = document.getElementById('commentVisibleToggle');
+      document.getElementById('toggleLabel').innerText = toggle.checked ? '表示中' : '非表示';
+    }
+
+    // スイッチ切り替え：閲覧画面での表示ON/OFFを保存
+    function toggleCommentVisibility() {
+      var toggle = document.getElementById('commentVisibleToggle');
+      updateToggleLabel();
+      google.script.run
+        .withSuccessHandler(function(on) {
+          document.getElementById('toggleLabel').innerText = on ? '表示中' : '非表示';
+        })
+        .withFailureHandler(function(err) {
+          // 失敗時は元に戻す
+          toggle.checked = !toggle.checked;
+          updateToggleLabel();
+          document.getElementById('commentMsg').innerText = '設定の保存に失敗しました';
+        })
+        .setCommentVisibility(toggle.checked);
+    }
+
+    // コメント投稿
+    function postComment() {
+      var text = document.getElementById('newComment').value.trim();
+      var msg = document.getElementById('commentMsg');
+      var btn = document.getElementById('postCommentBtn');
+      if (!text) {
+        msg.innerText = 'コメントを入力してください';
+        return;
+      }
+      msg.innerText = '送信中...';
+      btn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          msg.innerText = res;
+          btn.disabled = false;
+          document.getElementById('newComment').value = '';
+          // 最新コメントをプレースホルダーへ反映
+          document.getElementById('newComment').placeholder = '';
+        })
+        .withFailureHandler(function(err) {
+          msg.innerText = 'エラー: ' + err.message;
+          btn.disabled = false;
+        })
+        .postComment(text);
     }
 
     // 選択中の休憩所に応じてボタンの有効/無効と状態表示を更新

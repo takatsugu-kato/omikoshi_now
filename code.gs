@@ -4,6 +4,10 @@ var ADMIN_PW_KEY = 'ADMIN_PASSWORD';
 var SESSION_TTL_SEC = 12 * 60 * 60;
 // Google Maps API キーを保存するスクリプトプロパティのキー
 var GMAP_KEY = 'GMAP_API_KEY';
+// お知らせコメント用シート名（A列=タイムスタンプ, B列=コメント）
+var COMMENT_SHEET = 'コメント';
+// 閲覧画面でコメントを表示するかどうかを保存するスクリプトプロパティのキー
+var COMMENT_VISIBLE_KEY = 'COMMENT_VISIBLE';
 
 function doGet(e) {
   // パラメータ mode を取得（小文字に統一）
@@ -370,8 +374,71 @@ function getViewerData() {
       delayMinutes: delayMinutes
     },
     timeline: timeline,
-    toilets: toilets
+    toilets: toilets,
+    comment: getLatestComment(),          // 最新コメント（なければ null）
+    commentVisible: getCommentVisibility() // 閲覧画面で表示するか
   };
+}
+
+// コメントシートの最新1件を取得する
+// コメントシート列構成: A列=タイムスタンプ, B列=コメント
+function getLatestComment() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(COMMENT_SHEET);
+  if (!sheet) return null;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+  // 末尾1行だけ取得（最新コメントは常に最後に追記される想定）
+  var values = sheet.getRange(lastRow, 1, 1, 2).getValues()[0];
+  var time = values[0];
+  var text = values[1] ? String(values[1]).trim() : "";
+  if (!text) return null;
+  var formatted = (time instanceof Date) ? Utilities.formatDate(time, "JST", "M/d HH:mm") : String(time);
+  return { timestamp: formatted, text: text };
+}
+
+// 役員がコメントを投稿する
+function postComment(text) {
+  var body = String(text || "").trim();
+  if (!body) {
+    return "コメントを入力してください";
+  }
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(COMMENT_SHEET);
+  if (!sheet) {
+    return "コメントシートがありません（シート名: " + COMMENT_SHEET + "）";
+  }
+  // A列=タイムスタンプ, B列=コメント
+  sheet.appendRow([new Date(), body]);
+  return "コメントを投稿しました";
+}
+
+// 最新コメント1件を取得（Admin画面の初期表示用）
+function getLatestCommentForAdmin() {
+  return getLatestComment();
+}
+
+// Admin画面のコメントエリア初期化用：表示ON/OFFと最新コメントをまとめて返す
+function getCommentSettings() {
+  return {
+    visible: getCommentVisibility(),
+    latest: getLatestComment()
+  };
+}
+
+// 閲覧画面でコメントを表示するかどうかを取得（デフォルトは表示ON）
+function getCommentVisibility() {
+  var props = PropertiesService.getScriptProperties();
+  var val = props.getProperty(COMMENT_VISIBLE_KEY);
+  // 未設定なら true（表示）
+  return val !== 'false';
+}
+
+// 閲覧画面でコメントを表示するかどうかを切り替える
+function setCommentVisibility(on) {
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty(COMMENT_VISIBLE_KEY, on ? 'true' : 'false');
+  return on;
 }
 
 function formatTimeStr(val) {
